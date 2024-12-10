@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
 import gradio as gr
+import logging
 
 import utils.openai_util as outils
 
@@ -71,5 +72,6 @@ with gr.Blocks() as ui:
     sys_msg_box_btn.click(lambda: [], outputs=chatbot)
 
 
-ui.launch()
-
+if __name__ == "__main__":
+    logging.info(f"Starting interface")
+    ui.launch(server_name="0.0.0.0", server_port=7860)
