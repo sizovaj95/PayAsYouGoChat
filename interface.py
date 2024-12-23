@@ -1,7 +1,9 @@
 from dotenv import load_dotenv
 import gradio as gr
 import logging
+import os
 from pathlib import Path
+import re
 
 import utils.openai_util as outils
 
@@ -32,6 +34,8 @@ class Interface:
     image_out = None
     image_submit_btn = None
     image_download_btn = None
+    image_counter = 1
+    image_status_out = None
 
     def language_tab(self):
         with gr.Tab("Text"):
@@ -55,17 +59,29 @@ class Interface:
                         with gr.Column():
                             self.submit_btn = gr.Button("Send")
 
-    def download_image(self):
-        return gr.DownloadButton(visible=False)
-
     def image_tab(self):
         with gr.Tab("Images"):
             self.image_models_dd = gr.Dropdown([outils.DEFAULT_IMAGE_MODEL], label="Choose model: ",
                                        value=outils.DEFAULT_IMAGE_MODEL, interactive=True)
             self.image_prompt_box = gr.Textbox(placeholder="Your image description")
             self.image_submit_btn = gr.Button("Submit")
-            self.image_out = gr.Image(height=500)
-            self.image_download_btn = gr.DownloadButton("Save Image", value="image.jpg")
+            self.image_out = gr.Image(height=500, visible=False)
+            self.image_download_btn = gr.Button("Save Image", visible=False)
+            self.image_status_out = gr.Textbox(visible=True)
+            # self.image_download_btn = gr.DownloadButton("Save Image", value="image.jpg")
+
+    def download_image(self, image):
+        save_folder = os.path.expanduser(Path(__file__).parent.resolve() / r"images")
+        file_name = f"image_{self.image_counter}.jpg"
+        save_path = os.path.join(save_folder, file_name)
+        logging.info(f"Save path: {save_path}")
+        # while os.path.exists(save_path):
+        #     self.image_counter += 1
+        #     file_name = f"image_{self.image_counter}.jpg"
+        #     save_path = os.path.join(save_folder, file_name)
+        self.image_counter += 1
+        outils.save_image(image, save_path)
+        return gr.Textbox(f"Saved image to <{save_path}>", visible=True, show_label=False)
 
     def chat(self, kwargs):
         history = kwargs[self.chatbot]
@@ -77,7 +93,7 @@ class Interface:
     def image(self, kwargs):
         image_prompt = kwargs[self.image_prompt_box]
         model_name = kwargs[self.image_models_dd]
-        return outils.get_image(image_prompt, model_name)
+        return gr.Image(outils.get_image(image_prompt, model_name), visible=True), gr.Textbox(visible=False), gr.Button(visible=True)
 
     @staticmethod
     def handle_retry(history, retry_data: gr.RetryData):
@@ -101,8 +117,9 @@ class Interface:
             self.providers.change(get_list_of_model_names, self.providers, self.models)
             self.sys_msg_box_btn.click(lambda: [], outputs=self.chatbot)
 
-            self.image_submit_btn.click(self.image, {self.image_prompt_box, self.image_models_dd}, self.image_out)
-            # self.image_download_btn.click(self.download_image, None, [self.image_download_btn])
+            self.image_submit_btn.click(lambda: gr.Image(height=500), None, self.image_out).then(
+                self.image, {self.image_prompt_box, self.image_models_dd}, [self.image_out, self.image_status_out, self.image_download_btn])
+            self.image_download_btn.click(self.download_image, self.image_out, self.image_status_out)
         return ui
 
 
@@ -117,5 +134,5 @@ def get_list_of_model_names(provider):
 if __name__ == "__main__":
     logging.info(f"Starting interface")
     ui = Interface().ui()
-    # ui.launch(server_name="0.0.0.0", server_port=7860)
-    ui.launch()
+    ui.launch(server_name="0.0.0.0", server_port=7860)
+    # ui.launch()

@@ -2,6 +2,7 @@ import openai
 import base64
 from PIL import Image
 from io import BytesIO
+from pathlib import Path
 
 LANGUAGE_MODELS = ['gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo-0125']
 DEFAULT_LANGUAGE_MODEL = 'gpt-4o-mini'
@@ -32,13 +33,18 @@ def get_response(history: list[dict], model_name: str, system_msg: str, temperat
         yield history
 
 def get_image(prompt: str, model: str):
-    image_response = openai.images.generate(
-        model=model,
-        prompt=prompt,
-        size="1024x1024",
-        n=1,
-        response_format="b64_json",
-    )
-    image_base64 = image_response.data[0].b64_json
-    image_data = base64.b64decode(image_base64)
-    return Image.open(BytesIO(image_data))
+    # image_response = openai.images.generate(
+    #     model=model,
+    #     prompt=prompt,
+    #     size="1024x1024",
+    #     n=1,
+    #     response_format="b64_json",
+    # )
+    # image_base64 = image_response.data[0].b64_json
+    # image_data = base64.b64decode(image_base64)
+    # return Image.open(BytesIO(image_data))
+    return Path(__file__).parent.parent.resolve() / "capybara.jpg"
+
+def save_image(image, save_path):
+    pil_image = Image.fromarray(image)
+    pil_image.save(save_path)
