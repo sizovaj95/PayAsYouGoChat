@@ -3,22 +3,28 @@ import gradio as gr
 import logging
 import os
 from pathlib import Path
-import re
 
-import utils.openai_util as outils
+import utils.openai_manager as oman
+import utils.anthropic_manager as aman
+import utils.util as util
 
 
 load_dotenv()
 
+IS_TEST = True
+
 SYSTEM_MESSAGE = "You are a helpful, friendly assistant."
 
 OPENAI = "OpenAI"
+ANTHROPIC = "Anthropic"
 
-LIST_OF_PROVIDERS = [OPENAI]
+LIST_OF_PROVIDERS = [OPENAI, ANTHROPIC]
 DEFAULT_PROVIDER = OPENAI
 
 
 class Interface:
+    ai_manager = oman.OpenAi()
+
     providers = None
     models = None
     temp_slider = None
@@ -43,8 +49,8 @@ class Interface:
                 with gr.Column(scale=1):
                     self.providers = gr.Dropdown(LIST_OF_PROVIDERS, value=OPENAI, label="Choose provider: ",
                                             interactive=True)
-                    self.models = gr.Dropdown([outils.DEFAULT_LANGUAGE_MODEL], label="Choose model: ",
-                                         value=outils.DEFAULT_LANGUAGE_MODEL, interactive=True)
+                    self.models = gr.Dropdown([self.ai_manager.default_language_model], label="Choose model: ",
+                                         value=self.ai_manager.default_language_model, interactive=True)
                     with gr.Accordion("More settings", open=False):
                         self.temp_slider = gr.Slider(0, 1.5, value=0, step=0.1, interactive=True,
                                                 info="Higher values will increase diversity of model's output")
@@ -61,8 +67,8 @@ class Interface:
 
     def image_tab(self):
         with gr.Tab("Images"):
-            self.image_models_dd = gr.Dropdown([outils.DEFAULT_IMAGE_MODEL], label="Choose model: ",
-                                       value=outils.DEFAULT_IMAGE_MODEL, interactive=True)
+            self.image_models_dd = gr.Dropdown([self.ai_manager.default_language_model], label="Choose model: ",
+                                       value=self.ai_manager.default_language_model, interactive=True)
             self.image_prompt_box = gr.Textbox(placeholder="Your image description")
             self.image_submit_btn = gr.Button("Submit")
             self.image_out = gr.Image(height=500, visible=False)
@@ -75,12 +81,8 @@ class Interface:
         file_name = f"image_{self.image_counter}.jpg"
         save_path = os.path.join(save_folder, file_name)
         logging.info(f"Save path: {save_path}")
-        # while os.path.exists(save_path):
-        #     self.image_counter += 1
-        #     file_name = f"image_{self.image_counter}.jpg"
-        #     save_path = os.path.join(save_folder, file_name)
         self.image_counter += 1
-        outils.save_image(image, save_path)
+        util.save_image(image, save_path)
         return gr.Textbox(f"Saved image to <{save_path}>", visible=True, show_label=False)
 
     def chat(self, kwargs):
@@ -88,12 +90,14 @@ class Interface:
         model_name = kwargs[self.models]
         system_msg = kwargs[self.system_message_box]
         temperature = kwargs[self.temp_slider]
-        yield from outils.get_response(history, model_name, system_msg, temperature)
+        yield from self.ai_manager.get_language_response(history, model_name, system_msg, temperature)
 
     def image(self, kwargs):
         image_prompt = kwargs[self.image_prompt_box]
         model_name = kwargs[self.image_models_dd]
-        return gr.Image(outils.get_image(image_prompt, model_name), visible=True), gr.Textbox(visible=False), gr.Button(visible=True)
+        return (gr.Image(self.ai_manager.get_image_response(image_prompt, model_name, IS_TEST),
+                        visible=True),
+                gr.Textbox(visible=False), gr.Button(visible=True))
 
     @staticmethod
     def handle_retry(history, retry_data: gr.RetryData):
@@ -101,6 +105,15 @@ class Interface:
         previous_prompt = history[retry_data.index]
         new_history.append(previous_prompt)
         return new_history
+
+    def get_list_of_model_names(self, provider):
+        if provider == OPENAI:
+            self.ai_manager = oman.OpenAi()
+        elif provider == ANTHROPIC:
+            self.ai_manager = aman.Anthropic()
+        return gr.Dropdown(self.ai_manager.language_models,
+                           value=self.ai_manager.default_language_model,
+                           label="Choose model: ", interactive=True)
 
     def ui(self):
         with gr.Blocks() as ui:
@@ -114,7 +127,7 @@ class Interface:
             self.chatbot.retry(self.handle_retry, [self.chatbot], [self.chatbot]).then(
                 self.chat, {self.chatbot, self.models, self.system_message_box, self.temp_slider}, self.chatbot)
 
-            self.providers.change(get_list_of_model_names, self.providers, self.models)
+            self.providers.change(self.get_list_of_model_names, self.providers, self.models)
             self.sys_msg_box_btn.click(lambda: [], outputs=self.chatbot)
 
             self.image_submit_btn.click(lambda: gr.Image(height=500), None, self.image_out).then(
@@ -126,13 +139,10 @@ class Interface:
 def user(message, history):
     return "", history + [{"role": "user", "content": message}]
 
-def get_list_of_model_names(provider):
-    if provider == OPENAI:
-        return gr.Dropdown(outils.LANGUAGE_MODELS, value=outils.DEFAULT_LANGUAGE_MODEL, label="Choose model: ", interactive=True)
 
 
 if __name__ == "__main__":
     logging.info(f"Starting interface")
     ui = Interface().ui()
-    ui.launch(server_name="0.0.0.0", server_port=7860)
-    # ui.launch()
+    # ui.launch(server_name="0.0.0.0", server_port=7860)
+    ui.launch()

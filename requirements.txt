@@ -2,3 +2,4 @@ python-dotenv
 openai
 gradio
 Pillow
+anthropic
