@@ -2,14 +2,6 @@ from abc import ABC, abstractmethod
 
 
 class AIManager(ABC):
-
-    # def __init__(self, language_models: list[str], default_lm: str,
-    #              image_models: list[str], default_im: str):
-    #     self.language_models = language_models
-    #     self.default_language_model = default_lm
-    #     self.image_models = image_models
-    #     self.default_image_model = default_im
-
     @property
     @abstractmethod
     def language_models(self):

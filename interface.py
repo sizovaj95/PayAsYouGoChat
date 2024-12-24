@@ -25,14 +25,14 @@ DEFAULT_PROVIDER = OPENAI
 class Interface:
     ai_manager = oman.OpenAi()
 
-    providers = None
-    models = None
+    providers_dd = None
+    models_dd = None
     temp_slider = None
     system_message_box = None
     sys_msg_box_btn = None
     chatbot = None
-    msg = None
-    clear = None
+    msg_box = None
+    clear_btn = None
     submit_btn = None
 
     image_models_dd = None
@@ -40,16 +40,15 @@ class Interface:
     image_out = None
     image_submit_btn = None
     image_download_btn = None
-    image_counter = 1
-    image_status_out = None
+    image_status_out_box = None
 
     def language_tab(self):
         with gr.Tab("Text"):
             with gr.Row():
                 with gr.Column(scale=1):
-                    self.providers = gr.Dropdown(LIST_OF_PROVIDERS, value=OPENAI, label="Choose provider: ",
+                    self.providers_dd = gr.Dropdown(LIST_OF_PROVIDERS, value=OPENAI, label="Choose provider: ",
                                             interactive=True)
-                    self.models = gr.Dropdown([self.ai_manager.default_language_model], label="Choose model: ",
+                    self.models_dd = gr.Dropdown([self.ai_manager.default_language_model], label="Choose model: ",
                                          value=self.ai_manager.default_language_model, interactive=True)
                     with gr.Accordion("More settings", open=False):
                         self.temp_slider = gr.Slider(0, 1.5, value=0, step=0.1, interactive=True,
@@ -58,10 +57,10 @@ class Interface:
                         self.sys_msg_box_btn = gr.Button("Submit")
                 with gr.Column(scale=3):
                     self.chatbot = gr.Chatbot(height=800, type="messages")
-                    self.msg = gr.Textbox(placeholder="Your message", label="")
+                    self.msg_box = gr.Textbox(placeholder="Your message", label="")
                     with gr.Row():
                         with gr.Column():
-                            self.clear = gr.ClearButton([self.msg, self.chatbot])
+                            self.clear_btn = gr.ClearButton([self.msg_box, self.chatbot])
                         with gr.Column():
                             self.submit_btn = gr.Button("Send")
 
@@ -73,21 +72,20 @@ class Interface:
             self.image_submit_btn = gr.Button("Submit")
             self.image_out = gr.Image(height=500, visible=False)
             self.image_download_btn = gr.Button("Save Image", visible=False)
-            self.image_status_out = gr.Textbox(visible=True)
-            # self.image_download_btn = gr.DownloadButton("Save Image", value="image.jpg")
+            self.image_status_out_box = gr.Textbox(visible=True)
 
     def download_image(self, image):
         save_folder = os.path.expanduser(Path(__file__).parent.resolve() / r"images")
-        file_name = f"image_{self.image_counter}.jpg"
+        file_name = util.create_unique_file_name()
+        file_name = f"{file_name}.jpg"
         save_path = os.path.join(save_folder, file_name)
         logging.info(f"Save path: {save_path}")
-        self.image_counter += 1
         util.save_image(image, save_path)
-        return gr.Textbox(f"Saved image to <{save_path}>", visible=True, show_label=False)
+        return gr.Textbox(f"Saved image as <{file_name}>", visible=True, show_label=False)
 
     def chat(self, kwargs):
         history = kwargs[self.chatbot]
-        model_name = kwargs[self.models]
+        model_name = kwargs[self.models_dd]
         system_msg = kwargs[self.system_message_box]
         temperature = kwargs[self.temp_slider]
         yield from self.ai_manager.get_language_response(history, model_name, system_msg, temperature)
@@ -120,19 +118,25 @@ class Interface:
             self.language_tab()
             self.image_tab()
 
-            gr.on(triggers=[self.msg.submit, self.submit_btn.click],
-                  fn=user, inputs=[self.msg, self.chatbot], outputs=[self.msg, self.chatbot], queue=False).then(
-                self.chat, {self.chatbot, self.models, self.system_message_box, self.temp_slider}, self.chatbot)
+            gr.on(triggers=[self.msg_box.submit, self.submit_btn.click],
+                  fn=user, inputs=[self.msg_box, self.chatbot], outputs=[self.msg_box, self.chatbot], queue=False).then(
+                self.chat, {self.chatbot, self.models_dd, self.system_message_box, self.temp_slider}, self.chatbot)
 
             self.chatbot.retry(self.handle_retry, [self.chatbot], [self.chatbot]).then(
-                self.chat, {self.chatbot, self.models, self.system_message_box, self.temp_slider}, self.chatbot)
+                self.chat, {self.chatbot, self.models_dd, self.system_message_box, self.temp_slider}, self.chatbot)
 
-            self.providers.change(self.get_list_of_model_names, self.providers, self.models)
+            gr.on(triggers=[self.providers_dd.change, self.sys_msg_box_btn.click, self.clear_btn.click],
+                  fn=util.save_chat_history, inputs=[self.chatbot, self.providers_dd])
+
+            self.providers_dd.change(lambda: [], outputs=self.chatbot).then(
+                self.get_list_of_model_names, self.providers_dd, self.models_dd)
             self.sys_msg_box_btn.click(lambda: [], outputs=self.chatbot)
 
             self.image_submit_btn.click(lambda: gr.Image(height=500), None, self.image_out).then(
-                self.image, {self.image_prompt_box, self.image_models_dd}, [self.image_out, self.image_status_out, self.image_download_btn])
-            self.image_download_btn.click(self.download_image, self.image_out, self.image_status_out)
+                self.image, {self.image_prompt_box, self.image_models_dd},
+                [self.image_out, self.image_status_out_box, self.image_download_btn])
+
+            self.image_download_btn.click(self.download_image, self.image_out, self.image_status_out_box)
         return ui
 
 

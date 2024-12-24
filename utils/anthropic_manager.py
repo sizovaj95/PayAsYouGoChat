@@ -1,16 +1,12 @@
 import anthropic
-import base64
-from PIL import Image
-from io import BytesIO
 
 from base_class import AIManager
-import util as util
 
-LANGUAGE_MODELS = ['claude-3-5-sonnet-20241022']
+LANGUAGE_MODELS = ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022']
 DEFAULT_LANGUAGE_MODEL = 'claude-3-5-sonnet-20241022'
 
-IMAGE_MODELS = ["dall-e-3"]
-DEFAULT_IMAGE_MODEL = "dall-e-3"
+IMAGE_MODELS = []
+DEFAULT_IMAGE_MODEL = ""
 
 
 class Anthropic(AIManager):
@@ -32,6 +28,7 @@ class Anthropic(AIManager):
 
     def get_language_response(self, history: list[dict], model_name: str,
                               system_msg: str, temperature: float):
+        temperature = min(1, temperature)
         client = anthropic.Anthropic()
         new_history = [{"role": hist["role"], "content": hist["content"]} for hist in history]
         new_history.append({"role": "assistant", "content": ""})
@@ -51,7 +48,4 @@ class Anthropic(AIManager):
         pass
 
     def get_image_response(self, prompt: str, model: str, is_test: bool):
-        if is_test:
-            return util.return_test_image()
-        else:
-            pass
+        pass
