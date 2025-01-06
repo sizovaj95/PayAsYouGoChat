@@ -1,3 +1,5 @@
+import json
+import functools
 from dotenv import load_dotenv
 import gradio as gr
 import logging
@@ -24,6 +26,7 @@ DEFAULT_PROVIDER = OPENAI
 
 class Interface:
     ai_manager = oman.OpenAi()
+    prev_provider = OPENAI
 
     providers_dd = None
     models_dd = None
@@ -41,6 +44,23 @@ class Interface:
     image_submit_btn = None
     image_download_btn = None
     image_status_out_box = None
+
+    history_prov_dd = None
+    dates_dd = None
+    provider_dict = None
+    history_html_out = None
+
+    def history_tab(self):
+        with gr.Tab("History"):
+            with gr.Row():
+                with gr.Column(scale=1):
+                    self.provider_dict = util.get_history_file_names()
+                    providers = list(self.provider_dict.keys())
+                    self.history_prov_dd = gr.Dropdown(providers, label="Choose provider: ",
+                                                       interactive=True, value="")
+                    self.dates_dd = gr.Dropdown([], label="Choose date: ", interactive=True)
+                with gr.Column(scale=3):
+                    self.history_html_out = gr.HTML("")
 
     def language_tab(self):
         with gr.Tab("Text"):
@@ -60,7 +80,8 @@ class Interface:
                     self.msg_box = gr.Textbox(placeholder="Your message", label="")
                     with gr.Row():
                         with gr.Column():
-                            self.clear_btn = gr.ClearButton([self.msg_box, self.chatbot])
+                            self.clear_btn = gr.Button("Clear")
+                            # self.clear_btn = gr.ClearButton([self.msg_box, self.chatbot])
                         with gr.Column():
                             self.submit_btn = gr.Button("Send")
 
@@ -105,6 +126,7 @@ class Interface:
         return new_history
 
     def get_list_of_model_names(self, provider):
+        self.prev_provider = provider
         if provider == OPENAI:
             self.ai_manager = oman.OpenAi()
         elif provider == ANTHROPIC:
@@ -113,10 +135,32 @@ class Interface:
                            value=self.ai_manager.default_language_model,
                            label="Choose model: ", interactive=True)
 
+    def get_list_of_dates(self, provider) -> list[str]:
+        dates = self.provider_dict[provider]
+        dates = [d.name[:-5] for d in dates]
+        return dates
+
+    def get_dates_dd(self, provider):
+        dates = self.get_list_of_dates(provider)
+        return gr.Dropdown(dates)
+
+    def save_chat_history(self, history):
+        util.save_chat_history(history, self.prev_provider)
+
+    @functools.lru_cache()
+    def load_history(self, provider, date):
+        dates = self.provider_dict[provider]
+        date_path = [d.path for d in dates if date in d.name][0]
+        with open(date_path, "r") as f:
+            history = json.load(f)
+        html_content = util.dict_to_html(history)
+        return gr.HTML(html_content)
+
     def ui(self):
         with gr.Blocks() as ui:
             self.language_tab()
             self.image_tab()
+            self.history_tab()
 
             gr.on(triggers=[self.msg_box.submit, self.submit_btn.click],
                   fn=user, inputs=[self.msg_box, self.chatbot], outputs=[self.msg_box, self.chatbot], queue=False).then(
@@ -126,7 +170,9 @@ class Interface:
                 self.chat, {self.chatbot, self.models_dd, self.system_message_box, self.temp_slider}, self.chatbot)
 
             gr.on(triggers=[self.providers_dd.change, self.sys_msg_box_btn.click, self.clear_btn.click],
-                  fn=util.save_chat_history, inputs=[self.chatbot, self.providers_dd])
+                  fn=self.save_chat_history, inputs=[self.chatbot])
+
+            self.clear_btn.click(lambda : [], outputs=self.chatbot)
 
             self.providers_dd.change(lambda: [], outputs=self.chatbot).then(
                 self.get_list_of_model_names, self.providers_dd, self.models_dd)
@@ -137,6 +183,9 @@ class Interface:
                 [self.image_out, self.image_status_out_box, self.image_download_btn])
 
             self.image_download_btn.click(self.download_image, self.image_out, self.image_status_out_box)
+
+            self.history_prov_dd.change(self.get_dates_dd, self.history_prov_dd, self.dates_dd)
+            self.dates_dd.change(self.load_history, [self.history_prov_dd, self.dates_dd], self.history_html_out)
         return ui
 
 

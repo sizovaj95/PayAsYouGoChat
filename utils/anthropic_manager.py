@@ -1,6 +1,7 @@
 import anthropic
 
 from base_class import AIManager
+import util as util
 
 LANGUAGE_MODELS = ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022']
 DEFAULT_LANGUAGE_MODEL = 'claude-3-5-sonnet-20241022'
@@ -10,6 +11,8 @@ DEFAULT_IMAGE_MODEL = ""
 
 
 class Anthropic(AIManager):
+    name = util.ANTHROPIC
+
     @property
     def language_models(self):
         return LANGUAGE_MODELS
@@ -42,10 +45,6 @@ class Anthropic(AIManager):
             for text in stream.text_stream:
                 new_history[-1]['content'] += text or ''
                 yield new_history
-
-    def insert_system_role(self, history: list[dict], system_message: str) ->\
-            list[dict]:
-        pass
 
     def get_image_response(self, prompt: str, model: str, is_test: bool):
         pass

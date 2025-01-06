@@ -14,6 +14,8 @@ DEFAULT_IMAGE_MODEL = "dall-e-3"
 
 
 class OpenAi(AIManager):
+    name = util.OPENAI
+
     @property
     def language_models(self):
         return LANGUAGE_MODELS
@@ -45,9 +47,14 @@ class OpenAi(AIManager):
             history[-1]['content'] += chunk.choices[0].delta.content or ''
             yield history
 
-    def insert_system_role(self, history: list[dict], system_message: str) ->\
+    @staticmethod
+    def insert_system_role(history: list[dict], system_message: str) ->\
             list[dict]:
-        return super().insert_system_role(history, system_message)
+        if len(history) == 1:
+            history.insert(0, {"role": "system", "content": system_message})
+        else:
+            history[0] = {"role": "system", "content": system_message}
+        return history
 
     def get_image_response(self, prompt: str, model: str, is_test: bool):
         if is_test:

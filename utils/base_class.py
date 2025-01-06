@@ -2,6 +2,11 @@ from abc import ABC, abstractmethod
 
 
 class AIManager(ABC):
+    name: str
+
+    def __repr__(self):
+        return self.name
+
     @property
     @abstractmethod
     def language_models(self):
@@ -30,11 +35,3 @@ class AIManager(ABC):
     @abstractmethod
     def get_image_response(self, prompt: str, model: str, is_test: bool):
         pass
-
-    @abstractmethod
-    def insert_system_role(self, history: list[dict], system_message: str):
-        if len(history) == 1:
-            history.insert(0, {"role": "system", "content": system_message})
-        else:
-            history[0] = {"role": "system", "content": system_message}
-        return history
