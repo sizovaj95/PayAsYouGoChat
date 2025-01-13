@@ -37,6 +37,7 @@ class Interface:
     msg_box = None
     clear_btn = None
     submit_btn = None
+    save_btn = None
 
     image_models_dd = None
     image_prompt_box = None
@@ -48,19 +49,16 @@ class Interface:
     history_prov_dd = None
     dates_dd = None
     provider_dict = None
-    history_html_out = None
+    history_out = None
 
     def history_tab(self):
         with gr.Tab("History"):
             with gr.Row():
                 with gr.Column(scale=1):
-                    self.provider_dict = util.get_history_file_names()
-                    providers = list(self.provider_dict.keys())
-                    self.history_prov_dd = gr.Dropdown(providers, label="Choose provider: ",
-                                                       interactive=True, value="")
-                    self.dates_dd = gr.Dropdown([], label="Choose date: ", interactive=True)
+                    self.history_prov_dd, self.dates_dd = self.update_providers_history_dict()
+                    # self.dates_dd = gr.Dropdown([], label="Choose date: ", interactive=True)
                 with gr.Column(scale=3):
-                    self.history_html_out = gr.HTML("")
+                    self.history_out = gr.Markdown("")
 
     def language_tab(self):
         with gr.Tab("Text"):
@@ -81,9 +79,10 @@ class Interface:
                     with gr.Row():
                         with gr.Column():
                             self.clear_btn = gr.Button("Clear")
-                            # self.clear_btn = gr.ClearButton([self.msg_box, self.chatbot])
                         with gr.Column():
                             self.submit_btn = gr.Button("Send")
+                        with gr.Column():
+                            self.save_btn = gr.Button("Save")
 
     def image_tab(self):
         with gr.Tab("Images"):
@@ -109,7 +108,8 @@ class Interface:
         model_name = kwargs[self.models_dd]
         system_msg = kwargs[self.system_message_box]
         temperature = kwargs[self.temp_slider]
-        yield from self.ai_manager.get_language_response(history, model_name, system_msg, temperature)
+        yield from self.ai_manager.get_language_response(history=history, model_name=model_name,
+                                                         system_msg=system_msg, temperature=temperature)
 
     def image(self, kwargs):
         image_prompt = kwargs[self.image_prompt_box]
@@ -135,14 +135,25 @@ class Interface:
                            value=self.ai_manager.default_language_model,
                            label="Choose model: ", interactive=True)
 
-    def get_list_of_dates(self, provider) -> list[str]:
+    def get_dates_dd(self, provider):
         dates = self.provider_dict[provider]
         dates = [d.name[:-5] for d in dates]
-        return dates
-
-    def get_dates_dd(self, provider):
-        dates = self.get_list_of_dates(provider)
+        dates = [util.code_dt_to_readable(d) for d in dates]
+        dates = sorted(dates)
         return gr.Dropdown(dates)
+
+    def update_providers_history_dict(self):
+        self.provider_dict = util.get_history_file_names()
+        providers = list(self.provider_dict.keys())
+        if providers:
+            prov_dd = gr.Dropdown(providers, label="Choose provider: ", value=providers[0], interactive=True)
+            date_dd = self.get_dates_dd(providers[0])
+        else:
+            prov_dd = gr.Dropdown([], label="Choose provider: ", value=providers[0],
+                                  interactive=True)
+            date_dd = gr.Dropdown([])
+        return prov_dd, date_dd
+        # return gr.Dropdown(providers, label="Choose provider: ", interactive=True)
 
     def save_chat_history(self, history):
         util.save_chat_history(history, self.prev_provider)
@@ -150,11 +161,12 @@ class Interface:
     @functools.lru_cache()
     def load_history(self, provider, date):
         dates = self.provider_dict[provider]
+        date = util.readable_to_code_dt(date)
         date_path = [d.path for d in dates if date in d.name][0]
         with open(date_path, "r") as f:
             history = json.load(f)
-        html_content = util.dict_to_html(history)
-        return gr.HTML(html_content)
+        html_content = util.dict_to_markdown(history)
+        return gr.Markdown(html_content)
 
     def ui(self):
         with gr.Blocks() as ui:
@@ -169,8 +181,10 @@ class Interface:
             self.chatbot.retry(self.handle_retry, [self.chatbot], [self.chatbot]).then(
                 self.chat, {self.chatbot, self.models_dd, self.system_message_box, self.temp_slider}, self.chatbot)
 
-            gr.on(triggers=[self.providers_dd.change, self.sys_msg_box_btn.click, self.clear_btn.click],
-                  fn=self.save_chat_history, inputs=[self.chatbot])
+            gr.on(triggers=[self.providers_dd.change, self.sys_msg_box_btn.click,
+                            self.clear_btn.click, self.save_btn.click],
+                  fn=self.save_chat_history, inputs=self.chatbot).then(
+                self.update_providers_history_dict, outputs=[self.history_prov_dd, self.dates_dd])
 
             self.clear_btn.click(lambda : [], outputs=self.chatbot)
 
@@ -185,7 +199,8 @@ class Interface:
             self.image_download_btn.click(self.download_image, self.image_out, self.image_status_out_box)
 
             self.history_prov_dd.change(self.get_dates_dd, self.history_prov_dd, self.dates_dd)
-            self.dates_dd.change(self.load_history, [self.history_prov_dd, self.dates_dd], self.history_html_out)
+            self.dates_dd.change(self.load_history, [self.history_prov_dd, self.dates_dd], self.history_out)
+
         return ui
 
 
@@ -195,7 +210,7 @@ def user(message, history):
 
 
 if __name__ == "__main__":
-    logging.info(f"Starting interface")
+    logging.info("Starting interface")
     ui = Interface().ui()
     # ui.launch(server_name="0.0.0.0", server_port=7860)
     ui.launch()

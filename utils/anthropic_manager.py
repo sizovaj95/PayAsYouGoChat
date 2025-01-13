@@ -29,6 +29,7 @@ class Anthropic(AIManager):
     def default_image_model(self):
         return DEFAULT_IMAGE_MODEL
 
+    @util.test_dec
     def get_language_response(self, history: list[dict], model_name: str,
                               system_msg: str, temperature: float):
         temperature = min(1, temperature)
