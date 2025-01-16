@@ -73,7 +73,7 @@ class Interface:
                         self.system_message_box = gr.Textbox(label="System message", value=SYSTEM_MESSAGE)
                         self.sys_msg_box_btn = gr.Button("Submit")
                 with gr.Column(scale=3):
-                    self.chatbot = gr.Chatbot(height=800, type="messages")
+                    self.chatbot = gr.Chatbot(height=700, type="messages")
                     self.msg_box = gr.Textbox(placeholder="Your message", label="")
                     with gr.Row():
                         with gr.Column():
