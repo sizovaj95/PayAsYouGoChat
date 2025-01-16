@@ -13,7 +13,7 @@ import utils.util as util
 
 load_dotenv()
 
-IS_TEST = True
+IS_TEST = False
 
 SYSTEM_MESSAGE = "You are a helpful, friendly assistant."
 
@@ -56,7 +56,6 @@ class Interface:
             with gr.Row():
                 with gr.Column(scale=1):
                     self.history_prov_dd, self.dates_dd = self.update_providers_history_dict()
-                    # self.dates_dd = gr.Dropdown([], label="Choose date: ", interactive=True)
                 with gr.Column(scale=3):
                     self.history_out = gr.Markdown("")
 
@@ -86,8 +85,8 @@ class Interface:
 
     def image_tab(self):
         with gr.Tab("Images"):
-            self.image_models_dd = gr.Dropdown([self.ai_manager.default_language_model], label="Choose model: ",
-                                       value=self.ai_manager.default_language_model, interactive=True)
+            self.image_models_dd = gr.Dropdown([self.ai_manager.default_image_model], label="Choose model: ",
+                                       value=self.ai_manager.default_image_model, interactive=True)
             self.image_prompt_box = gr.Textbox(placeholder="Your image description")
             self.image_submit_btn = gr.Button("Submit")
             self.image_out = gr.Image(height=500, visible=False)
@@ -149,11 +148,9 @@ class Interface:
             prov_dd = gr.Dropdown(providers, label="Choose provider: ", value=providers[0], interactive=True)
             date_dd = self.get_dates_dd(providers[0])
         else:
-            prov_dd = gr.Dropdown([], label="Choose provider: ", value=providers[0],
-                                  interactive=True)
+            prov_dd = gr.Dropdown([], label="Choose provider: ", interactive=True)
             date_dd = gr.Dropdown([])
         return prov_dd, date_dd
-        # return gr.Dropdown(providers, label="Choose provider: ", interactive=True)
 
     def save_chat_history(self, history):
         util.save_chat_history(history, self.prev_provider)
@@ -212,5 +209,5 @@ def user(message, history):
 if __name__ == "__main__":
     logging.info("Starting interface")
     ui = Interface().ui()
-    # ui.launch(server_name="0.0.0.0", server_port=7860)
-    ui.launch()
+    ui.launch(server_name="0.0.0.0", server_port=7860)
+    # ui.launch()
