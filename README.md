@@ -1,4 +1,5 @@
 Interface made with Gradio where several providers of AI capabilities (currently only 2) are plugged in. Has chat and image functionality, also stores history locally. Containerized with Docker for easy use.
+
 *Chat tab*
 ![image](https://github.com/user-attachments/assets/e47ee368-7907-44db-813f-00a20bf0b34a)
 
