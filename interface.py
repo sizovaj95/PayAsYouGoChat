@@ -1,6 +1,5 @@
 import json
 import functools
-from dotenv import load_dotenv
 import gradio as gr
 import logging
 import os
@@ -10,8 +9,6 @@ import utils.openai_manager as oman
 import utils.anthropic_manager as aman
 import utils.util as util
 
-
-load_dotenv()
 
 IS_TEST = False
 
@@ -209,5 +206,5 @@ def user(message, history):
 if __name__ == "__main__":
     logging.info("Starting interface")
     ui = Interface().ui()
-    ui.launch(server_name="0.0.0.0", server_port=7860)
-    # ui.launch()
+    # ui.launch(server_name="0.0.0.0", server_port=7860)
+    ui.launch()

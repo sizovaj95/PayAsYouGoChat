@@ -2,6 +2,7 @@ import openai
 import base64
 from PIL import Image
 from io import BytesIO
+from dotenv import load_dotenv
 
 from base_class import AIManager
 import util as util
@@ -12,6 +13,8 @@ DEFAULT_LANGUAGE_MODEL = 'gpt-4o-mini'
 IMAGE_MODELS = ["dall-e-3"]
 DEFAULT_IMAGE_MODEL = "dall-e-3"
 
+load_dotenv()
+client = openai.OpenAI()
 
 class OpenAi(AIManager):
     name = util.OPENAI
@@ -32,11 +35,9 @@ class OpenAi(AIManager):
     def default_image_model(self):
         return DEFAULT_IMAGE_MODEL
 
-    @util.test_dec
     def get_language_response(self, history: list[dict], model_name: str,
                               system_msg: str, temperature: float):
         history = self.insert_system_role(history, system_msg)
-        client = openai.OpenAI()
         stream = client.chat.completions.create(
             model=model_name,
             messages=history,

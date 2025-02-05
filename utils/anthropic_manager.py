@@ -9,6 +9,7 @@ DEFAULT_LANGUAGE_MODEL = 'claude-3-5-sonnet-20241022'
 IMAGE_MODELS = []
 DEFAULT_IMAGE_MODEL = ""
 
+client = anthropic.Anthropic()
 
 class Anthropic(AIManager):
     name = util.ANTHROPIC
@@ -29,11 +30,9 @@ class Anthropic(AIManager):
     def default_image_model(self):
         return DEFAULT_IMAGE_MODEL
 
-    @util.test_dec
     def get_language_response(self, history: list[dict], model_name: str,
                               system_msg: str, temperature: float):
         temperature = min(1, temperature)
-        client = anthropic.Anthropic()
         new_history = [{"role": hist["role"], "content": hist["content"]} for hist in history]
         new_history.append({"role": "assistant", "content": ""})
         with client.messages.stream(

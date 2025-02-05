@@ -34,15 +34,6 @@ def create_unique_file_name() -> str:
 def return_test_image():
     return Path(__file__).parent.parent.resolve() / "test_image.jpg"
 
-
-def test_dec(func):
-    def wrapper(*args, **kwargs):
-        model_name = args[0].name
-        history = kwargs['history']
-        res = func(*args, **kwargs)
-        return res
-    return wrapper
-
 def save_chat_history(history: list[dict], provider: str):
     if history:
         folder = HISTORY_FOLDER / provider
